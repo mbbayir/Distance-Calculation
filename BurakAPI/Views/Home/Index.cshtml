@@ -1,0 +1,241 @@
+﻿0@{
+    ViewData["Title"] = "Home Page";
+}
+@model TarifeHesaplayiciModel
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <form asp-action="Hesapla" method="post" class="my-form">
+                <div class="form-row">
+                    <div class="col-md-6 mb-3">
+                        <label for="BaslangicAdres">Başlangıç Adresi</label>
+                        <input type="text" asp-for="BaslangicAdres" class="form-control" id="BaslangicAdres" placeholder="Başlangıç Adresiniz:" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="VarisAdres">Varış Adresi</label>
+                        <input type="text" asp-for="VarisAdres" class="form-control" id="VarisAdres" placeholder="Varış Adresiniz:" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block mt-3"><i class="fas fa-calculator"></i> Hesapla</button>
+            </form>
+
+            <div id="output" class="bg-light mt-4">
+                @{
+                    double i = 1.2;
+                }
+
+                @if (Model != null)
+                {
+                    @if (Model.Mesafe != null)
+                    {
+                        double mesafeDouble = Convert.ToDouble(Model.Mesafe.Value);
+                        double sonuc = i * mesafeDouble;
+
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-map-marker-alt"></i> Mesafe Sonucu</h5>
+                                <p class="card-text">Mesafe Aralığı: <strong>@sonuc.ToString("F2") km</strong></p>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning" role="alert">
+                            <i class="fas fa-exclamation-triangle"></i> Mesafe hesaplanamadı.
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="alert alert-danger" role="alert">
+                        <i class="fas fa-exclamation-circle"></i> Model null.
+                    </div>
+                }
+            </div>
+
+            <div id="googleMap" class="mt-4" style="height: 400px; width: 100%; border-radius: 10px;"></div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <script src="https://maps.googleapis.com/maps/api/js?key=[YOURKEY]&libraries=places&callback=initializeMap" async defer></script>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.notify/1.5.0/notify-metro.min.js" crossorigin="anonymous"></script>
+    <script src="https://kit.fontawesome.com/your-font-awesome-kit-id.js" crossorigin="anonymous"></script>
+
+    <script>
+        function initializeMap() {
+            var myLatLng = { lat: 36.8841, lng: 30.7056 };
+            var mapOptions = {
+                center: myLatLng,
+                zoom: 7,
+                mapTypeId: google.maps.MapTypeId.ROADMAP
+            };
+
+            var map = new google.maps.Map(document.getElementById('googleMap'), mapOptions);
+
+            var directionsService = new google.maps.DirectionsService();
+            var directionsDisplay = new google.maps.DirectionsRenderer();
+            directionsDisplay.setMap(map);
+
+            function calcRoute() {
+                var baslangicAdres = document.getElementById("BaslangicAdres").value;
+                var varisAdres = document.getElementById("VarisAdres").value;
+
+                var request = {
+                    origin: baslangicAdres,
+                    destination: varisAdres,
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    unitSystem: google.maps.UnitSystem.METRIC
+                };
+
+                $.ajax({
+                    url: '/your-server-endpoint',
+                    method: 'POST',
+                    data: JSON.stringify(request),
+                    success: function (data) {
+                        var outputDiv = $('#output');
+                        if (data.status === 'OK') {
+                            outputDiv.html("<div class='alert alert-info'>Başlangıç: " + baslangicAdres + ".<br />Varış: " + varisAdres + "<br /> Araç ile Mesafe <i class='fa-solid fa-road'></i>: " + data.routes[0].legs[0].distance.text + "<br />Toplam Varış Süresi: <i class='fa-solid fa-hourglass-start'></i>: " + data.routes[0].legs[0].duration.text + ".</div>");
+                            directionsDisplay.setDirections(data);
+                        } else {
+                            directionsDisplay.setDirections({ routes: [] });
+                            map.setCenter(myLatLng);
+                            outputDiv.html("<div class='alert alert-danger'><i class='fa-solid fa-triangle-exclamation'></i> Sürüş Mesafesi Alınamadı.</div>");
+
+                            notifyUser('Hata', 'Sürüş Mesafesi Alınamadı', 'danger');
+                        }
+                    },
+                    error: function (error) {
+                        console.error('AJAX error:', error);
+                    }
+                });
+
+                function notifyUser(title, message, type) {
+                    $.notify({
+                        title: title,
+                        message: message
+                    }, {
+                        type: type,
+                        placement: {
+                            from: "top",
+                            align: "right"
+                        },
+                        delay: 3000 
+                    });
+                }
+            }
+
+            var options = {
+                types: ['geocode']
+            };
+            var input1 = document.getElementById("BaslangicAdres");
+            var autocomplete = new google.maps.places.Autocomplete(input1, options);
+
+            var input2 = document.getElementById("VarisAdres");
+            var autocomplete2 = new google.maps.places.Autocomplete(input2, options);
+
+            document.addEventListener("keyup", function (event) {
+                if (event.key === "Enter") {
+                    calcRoute();
+                }
+            });
+
+        }
+        document.addEventListener('DOMContentLoaded', initializeMap);
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .my-form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        input.form-control {
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button.btn-primary {
+            background-color: #007bff;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+        }
+
+            button.btn-primary:hover {
+                background-color: #0056b3;
+            }
+
+        #output {
+            margin-top: 20px;
+        }
+
+        .card {
+            margin-top: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+
+        .card-body {
+            padding: 15px;
+        }
+
+        h5.card-title {
+            margin-bottom: 10px;
+            color: #007bff;
+        }
+
+        p.card-text {
+            margin: 0;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        #googleMap {
+            height: 400px;
+            width: 100%;
+            border-radius: 10px;
+        }
+    </style>
+}
